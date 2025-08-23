@@ -8,3 +8,4 @@ export const GOVERNANCE_ABI = Governance.abi
 export const MEMBERS_ABI = Members.abi
 export const PAYOUTS_ABI = Payouts.abi
 export const ADDRESS_MANAGER_ABI = AddressManager.abi
+// Add any additional ABIs here
