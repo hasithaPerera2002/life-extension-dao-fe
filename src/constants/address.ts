@@ -1,0 +1,13 @@
+
+export const CONTRACT_ADDRESSES = {
+  AddressManager: "0x123761842EA3984B1b66C04b4Aa4bc8C0C6590de",
+  Proposal: "0xeDA31EAB7A754E9E26D6195Af01B1A8E51df6667",
+  Members: "0xd6B86C118CC65cEABD4D0EEaDf697CCCF113858c",
+  Governance: "0x6b5A31469Ea17370C3fdddf7F7183C65b8CEA84a",
+  Payouts: "0x272E49fBd414cf51e6707b7a571B3494AA15dbc3",
+};
+
+// Chain IDs in hex format
+export const CHAIN_IDS = {
+  BASE_SEPOLIA: "0x14a34", // 84532 in decimal
+};
