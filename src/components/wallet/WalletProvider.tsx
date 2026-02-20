@@ -6,6 +6,8 @@ import { CHAIN_IDS, CONTRACT_ADDRESSES } from "@/constants/address";
 import { MEMBERS_ABI } from "@/abis/abi";
 
 export interface WalletContextType {
+  /** True if the browser has an Ethereum provider (MetaMask, Rabby, Coinbase Wallet, etc.) */
+  hasWallet: boolean;
   provider: ethers.BrowserProvider | null;
   signer: ethers.Signer | null;
   address: string | null;
@@ -29,6 +31,7 @@ export interface WalletContextType {
 }
 
 export const WalletContext = createContext<WalletContextType>({
+  hasWallet: false,
   provider: null,
   signer: null,
   address: null,
@@ -75,7 +78,13 @@ export const SESSION_KEYS = {
   LAST_CONNECTED: "wallet_lastConnected",
 };
 
+function getHasWallet(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!(window as Window & { ethereum?: unknown }).ethereum;
+}
+
 export function WalletProvider({ children }: { children: ReactNode }) {
+  const [hasWallet, setHasWallet] = useState(false);
   const [provider, setProvider] =
     useState<ethers.BrowserProvider | null>(null);
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
@@ -95,8 +104,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     loading: false,
   });
 
+  // Detect wallet availability (MetaMask, Rabby, Coinbase Wallet, etc.)
+  useEffect(() => {
+    setHasWallet(getHasWallet());
+  }, []);
+
   // Load data from session storage on initialization
   useEffect(() => {
+    if (!getHasWallet()) {
+      setHasInitialized(true);
+      return;
+    }
+
     const loadFromSession = async () => {
       try {
         const storedIsConnected =
@@ -137,11 +156,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           }
 
           // Reconnect to provider
-          if (window.ethereum) {
-            const ethProvider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await ethProvider.getSigner();
-            setProvider(ethProvider);            
-            setSigner(signer);
+          const eth = (window as Window & { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+          if (eth) {
+            const ethProvider = new ethers.BrowserProvider(eth);
+            const s = await ethProvider.getSigner();
+            setProvider(ethProvider);
+            setSigner(s);
           }
         } else {
           // Clear invalid session data
@@ -212,7 +232,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Only check wallet connection if not already loaded from session
   useEffect(() => {
-    if (!hasInitialized) return;
+    if (!hasInitialized || !hasWallet) return;
 
     const checkConnection = async () => {
       // If we already have connection data from session, don't reconnect
@@ -220,7 +240,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (window.ethereum && window.ethereum.selectedAddress && !isConnecting) {
+      if (window.ethereum?.selectedAddress && !isConnecting) {
         try {
           console.log("Attempting to reconnect wallet...");
           await connect();
@@ -233,11 +253,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Small delay to prevent multiple calls
     const timeoutId = setTimeout(checkConnection, 100);
     return () => clearTimeout(timeoutId);
-  }, [hasInitialized, isConnected, address]);
+  }, [hasInitialized, hasWallet, isConnected, address, isConnecting]);
 
   // Listen for account changes
   useEffect(() => {
-    if (!window.ethereum) return;
+    if (!hasWallet || !window.ethereum) return;
 
     const handleAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
@@ -278,7 +298,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
       window.ethereum.removeListener("chainChanged", handleChainChanged);
     };
-  }, [address, isConnecting]);
+  }, [hasWallet, address, isConnecting]);
 
   // Update balance when address or chainId changes
   useEffect(() => {
@@ -300,9 +320,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const connect = async () => {
-    if (!window.ethereum) {
-      setError("MetaMask not installed. Please install MetaMask to continue.");
-      toast.error("MetaMask not installed");
+    if (!getHasWallet() || !window.ethereum) {
+      setError("A wallet is required to connect (e.g. MetaMask or any Ethereum/Base wallet). Please install one.");
+      toast.error("Need a wallet to connect");
       return;
     }
 
@@ -365,8 +385,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const switchNetwork = async (targetChainIdHex: string) => {
-    if (!window.ethereum) {
-      setError("MetaMask not installed");
+    if (!getHasWallet() || !window.ethereum) {
+      setError("A wallet is required");
       return;
     }
 
@@ -418,8 +438,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const ensureNetwork = async (targetChainIdHex: string): Promise<boolean> => {
-    if (!window.ethereum) {
-      toast.error("MetaMask not installed");
+    if (!getHasWallet() || !window.ethereum) {
+      toast.error("Need a wallet to connect");
       return false;
     }
 
@@ -572,6 +592,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [hasInitialized, isConnected, signer, address, chainIdHex]);
 
   const walletContextValue: WalletContextType = {
+    hasWallet,
     provider,
     signer,
     address,

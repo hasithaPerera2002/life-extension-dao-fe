@@ -7,7 +7,7 @@ import { MobileMenu } from './MobileMenu';
 import { WalletInfo } from '@/components/wallet/WalletInfo';
 
 export function Navbar() {
-  const { connect, disconnect, address, isConnected, chainId } = useWallet();
+  const { hasWallet, connect, disconnect, address, isConnected, chainId } = useWallet();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   return (
@@ -25,16 +25,7 @@ export function Navbar() {
         </div>
         
         <div className="flex items-center gap-2">
-          {isConnected ? (
-            <WalletInfo />
-          ) : (
-            <Button 
-              onClick={connect}
-              className="bg-gradient-to-r from-dao-primary to-dao-tertiary hover:opacity-90 text-black font-medium"
-            >
-              Connect Wallet
-            </Button>
-          )}
+          <WalletInfo />
           
           <button 
             className="md:hidden neo-button p-2"

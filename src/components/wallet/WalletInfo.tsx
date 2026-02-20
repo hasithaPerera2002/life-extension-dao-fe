@@ -5,8 +5,11 @@ import { Card } from "@/components/ui/card";
 import { CHAIN_IDS } from "@/constants/address";
 import { truncateAddress } from "@/lib/utils";
 
+const WALLET_INSTALL_URL = "https://metamask.io/download/";
+
 export function WalletInfo() {
   const {
+    hasWallet,
     address,
     isConnected,
     isConnecting,
@@ -38,6 +41,24 @@ export function WalletInfo() {
 
     return "Unsupported Network";
   };
+
+  if (!hasWallet) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <span className="text-xs text-amber-400/90">Need a wallet to connect</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-amber-400/40 text-amber-400/90 hover:bg-amber-400/10"
+          asChild
+        >
+          <a href={WALLET_INSTALL_URL} target="_blank" rel="noopener noreferrer">
+            Install MetaMask or wallet
+          </a>
+        </Button>
+      </div>
+    );
+  }
 
   if (!isConnected) {
     return (
