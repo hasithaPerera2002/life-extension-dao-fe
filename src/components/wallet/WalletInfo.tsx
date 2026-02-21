@@ -19,6 +19,7 @@ export function WalletInfo() {
     disconnect,
     switchNetwork,
   } = useWallet();
+  const isSupportedNetwork = chainId === parseInt(CHAIN_IDS.BASE_SEPOLIA, 16);
 
   const getNetworkColor = (chainId: number | null) => {
     if (!chainId) return "text-gray-400";
@@ -74,6 +75,17 @@ export function WalletInfo() {
 
   return (
     <div className="flex items-center gap-3">
+      {!isSupportedNetwork && (
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => switchNetwork(CHAIN_IDS.BASE_SEPOLIA)}
+          className="bg-amber-600 hover:bg-amber-500 text-white"
+        >
+          Switch to Base Sepolia
+        </Button>
+      )}
+
       <Card className="bg-dao-dark-accent py-1 px-3 flex items-center gap-2">
         <div
           className={`h-2 w-2 rounded-full ${getNetworkColor(chainId)}`}
