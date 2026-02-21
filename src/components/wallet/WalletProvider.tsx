@@ -78,6 +78,25 @@ export const SESSION_KEYS = {
   LAST_CONNECTED: "wallet_lastConnected",
 };
 
+export const PERSISTENT_KEYS = {
+  MANUAL_DISCONNECT: "wallet_manualDisconnect",
+  MEMBER_STATUS_BY_ADDRESS: "wallet_memberStatusByAddress",
+};
+
+type MemberStatus = {
+  isMember: boolean;
+  memberSince: number | null;
+  balance: string | null;
+  loading: boolean;
+};
+
+const EMPTY_MEMBER_STATUS: MemberStatus = {
+  isMember: false,
+  memberSince: null,
+  balance: null,
+  loading: false,
+};
+
 function getHasWallet(): boolean {
   if (typeof window === "undefined") return false;
   return !!(window as Window & { ethereum?: unknown }).ethereum;
@@ -97,12 +116,50 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [showNetworkModal, setShowNetworkModal] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [memberStatus, setMemberStatus] = useState({
-    isMember: false,
-    memberSince: null as number | null,
-    balance: null as string | null,
-    loading: false,
-  });
+  const [memberStatus, setMemberStatus] = useState<MemberStatus>(
+    EMPTY_MEMBER_STATUS
+  );
+
+  const getManualDisconnect = () =>
+    localStorage.getItem(PERSISTENT_KEYS.MANUAL_DISCONNECT) === "true";
+
+  const setManualDisconnect = (value: boolean) => {
+    localStorage.setItem(PERSISTENT_KEYS.MANUAL_DISCONNECT, String(value));
+  };
+
+  const getStoredMemberStatusMap = (): Record<string, MemberStatus> => {
+    const raw = localStorage.getItem(PERSISTENT_KEYS.MEMBER_STATUS_BY_ADDRESS);
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw) as Record<string, MemberStatus>;
+    } catch {
+      return {};
+    }
+  };
+
+  const setStoredMemberStatusMap = (data: Record<string, MemberStatus>) => {
+    localStorage.setItem(
+      PERSISTENT_KEYS.MEMBER_STATUS_BY_ADDRESS,
+      JSON.stringify(data)
+    );
+  };
+
+  const setPersistentMemberStatus = (
+    walletAddress: string,
+    status: MemberStatus
+  ) => {
+    const map = getStoredMemberStatusMap();
+    map[walletAddress.toLowerCase()] = status;
+    setStoredMemberStatusMap(map);
+  };
+
+  const getPersistentMemberStatus = (
+    walletAddress: string | null
+  ): MemberStatus | null => {
+    if (!walletAddress) return null;
+    const map = getStoredMemberStatusMap();
+    return map[walletAddress.toLowerCase()] || null;
+  };
 
   // Detect wallet availability (MetaMask, Rabby, Coinbase Wallet, etc.)
   useEffect(() => {
@@ -139,6 +196,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           Date.now() - parseInt(lastConnected) < 60 * 60 * 1000;
 
         if (storedIsConnected && storedAddress && isSessionValid) {
+          if (getManualDisconnect()) {
+            setHasInitialized(true);
+            return;
+          }
+
           setAddress(storedAddress);
           setChainId(storedChainId ? parseInt(storedChainId) : null);
           setChainIdHex(storedChainIdHex);
@@ -152,6 +214,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               
             } catch (e) {
               console.warn("Failed to parse stored member status");
+            }
+          } else {
+            const persistedMemberStatus =
+              getPersistentMemberStatus(storedAddress);
+            if (persistedMemberStatus) {
+              setMemberStatus(persistedMemberStatus);
             }
           }
 
@@ -221,12 +289,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const resetStatesForNewAccount = () => {
     setBalance(null);
-    setMemberStatus({
-      isMember: false,
-      memberSince: null,
-      balance: null,
-      loading: false,
-    });
+    setMemberStatus(EMPTY_MEMBER_STATUS);
     clearSessionStorage();
   };
 
@@ -237,6 +300,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const checkConnection = async () => {
       // If we already have connection data from session, don't reconnect
       if (isConnected && address) {
+        return;
+      }
+      if (getManualDisconnect()) {
         return;
       }
 
@@ -268,6 +334,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         // Reset cache and states for new account
         resetStatesForNewAccount();
         setAddress(accounts[0]);
+        const persistedMemberStatus = getPersistentMemberStatus(accounts[0]);
+        if (persistedMemberStatus) {
+          setMemberStatus(persistedMemberStatus);
+        } else {
+          setMemberStatus(EMPTY_MEMBER_STATUS);
+        }
         updateBalance(accounts[0]);
         toast.info("Account changed");
       }
@@ -348,6 +420,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setChainId(networkChainId);
       setChainIdHex(chainIdHex);
       setIsConnected(true);
+      setManualDisconnect(false);
+
+      const persistedMemberStatus = getPersistentMemberStatus(accounts[0]);
+      if (persistedMemberStatus) {
+        setMemberStatus(persistedMemberStatus);
+      }
 
       if ( chainIdHex !== CHAIN_IDS.BASE_SEPOLIA) {
         toast.info(
@@ -374,12 +452,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setBalance(null);
     setIsConnected(false);
     setError(null);
-    setMemberStatus({
-      isMember: false,
-      memberSince: null,
-      balance: null,
-      loading: false,
-    });
+    setMemberStatus(EMPTY_MEMBER_STATUS);
+    setManualDisconnect(true);
     clearSessionStorage();
     toast.info("Wallet disconnected");
   };
@@ -473,13 +547,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ) {
       // Only reset if we're truly disconnected or on wrong network
       if (!isConnected || chainIdHex !== CHAIN_IDS.BASE_SEPOLIA) {
-        const emptyStatus = {
-          isMember: false,
-          memberSince: null,
-          balance: null,
-          loading: false,
-        };
-        setMemberStatus(emptyStatus);
+        setMemberStatus(EMPTY_MEMBER_STATUS);
       }
       return;
     }
@@ -557,6 +625,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       };
 
       setMemberStatus(newMemberStatus);
+      setPersistentMemberStatus(address, newMemberStatus);
     } catch (error) {
       console.error("Failed to fetch member status:", error);
       // Don't reset to false if we had a valid member status before

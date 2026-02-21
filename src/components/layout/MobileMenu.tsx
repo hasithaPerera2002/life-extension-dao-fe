@@ -1,9 +1,11 @@
 
 import React from 'react';
 import { useWallet } from '@/components/wallet/useWallet';
+import { Link } from 'react-router-dom';
 
 export function MobileMenu({ onClose }: { onClose: () => void }) {
-  const { isConnected } = useWallet();
+  const { isConnected, memberStatus } = useWallet();
+  const isMember = memberStatus.isMember;
   
   return (
     <div className="fixed inset-0 z-40 bg-black/90 backdrop-blur-sm md:hidden">
@@ -18,34 +20,43 @@ export function MobileMenu({ onClose }: { onClose: () => void }) {
         </div>
         
         <nav className="flex flex-col gap-6 items-center text-xl">
-          <a 
-            href="/" 
+          <Link 
+            to="/" 
             className="text-foreground/90 hover:text-dao-primary transition-colors py-2"
             onClick={onClose}
           >
             Dashboard
-          </a>
-          <a 
-            href="/proposals" 
-            className="text-foreground/90 hover:text-dao-primary transition-colors py-2"
-            onClick={onClose}
-          >
-            Proposals
-          </a>
-          <a 
-            href="/membership" 
+          </Link>
+          <Link 
+            to="/membership" 
             className="text-foreground/90 hover:text-dao-primary transition-colors py-2"
             onClick={onClose}
           >
             Membership
-          </a>
-          <a 
-            href="/insurance" 
-            className="text-foreground/90 hover:text-dao-primary transition-colors py-2"
-            onClick={onClose}
-          >
-            Insurance
-          </a>
+          </Link>
+          {isMember ? (
+            <>
+              <Link 
+                to="/proposals" 
+                className="text-foreground/90 hover:text-dao-primary transition-colors py-2"
+                onClick={onClose}
+              >
+                Proposals
+              </Link>
+              <Link 
+                to="/insurance" 
+                className="text-foreground/90 hover:text-dao-primary transition-colors py-2"
+                onClick={onClose}
+              >
+                Insurance
+              </Link>
+            </>
+          ) : (
+            <>
+              <span className="text-foreground/40 cursor-not-allowed py-2">Proposals (join required)</span>
+              <span className="text-foreground/40 cursor-not-allowed py-2">Insurance (join required)</span>
+            </>
+          )}
           
           {isConnected && (
             <a 

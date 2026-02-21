@@ -3,7 +3,7 @@ import { ethers, parseEther } from "ethers";
 import { useWallet } from "@/components/wallet/useWallet";
 import { CONTRACT_ADDRESSES, CHAIN_IDS } from "@/constants/address";
 import { toast } from "sonner";
-import { SESSION_KEYS } from "../wallet/WalletProvider";
+import { PERSISTENT_KEYS, SESSION_KEYS } from "../wallet/WalletProvider";
 import { handleContractCall } from "@/lib/contractUtils";
 import { GOVERNANCE_ABI, MEMBERS_ABI, PAYOUTS_ABI, PROPOSAL_ABI } from "@/abis/abi";
 
@@ -60,6 +60,25 @@ export function ContractProvider({ children }: { children: ReactNode }) {
   });
 
   const [loading, setLoading] = useState(false);
+
+  const persistMemberStatus = (walletAddress: string, isMember: boolean) => {
+    try {
+      const raw = localStorage.getItem(PERSISTENT_KEYS.MEMBER_STATUS_BY_ADDRESS);
+      const parsed = raw ? JSON.parse(raw) : {};
+      parsed[walletAddress.toLowerCase()] = {
+        isMember,
+        memberSince: Date.now(),
+        balance: null,
+        loading: false,
+      };
+      localStorage.setItem(
+        PERSISTENT_KEYS.MEMBER_STATUS_BY_ADDRESS,
+        JSON.stringify(parsed)
+      );
+    } catch (error) {
+      console.warn("Failed to persist member status:", error);
+    }
+  };
 
   useEffect(() => {
     if (isConnected && signer) {
@@ -136,8 +155,18 @@ export function ContractProvider({ children }: { children: ReactNode }) {
     setLoading(true);
 
     try {
+      const alreadyMemberOnChain = await contracts.membersContract.isMember(address);
+      if (alreadyMemberOnChain) {
+        toast.info("You are already a DAO member");
+        persistMemberStatus(address, true);
+        await refreshMemberStatus();
+        setLoading(false);
+        return;
+      }
+
       if (memberStatus.isMember) {
         toast.info("You are already a DAO member");
+        persistMemberStatus(address, true);
         setLoading(false);
         return;
       }
@@ -171,6 +200,7 @@ export function ContractProvider({ children }: { children: ReactNode }) {
             SESSION_KEYS.MEMBER_STATUS,
             JSON.stringify(updatedMemberStatus)
           );
+          persistMemberStatus(address, true);
 
           // Refresh member status from contract to ensure consistency
           await refreshMemberStatus();
