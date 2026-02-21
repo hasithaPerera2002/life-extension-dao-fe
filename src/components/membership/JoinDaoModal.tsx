@@ -28,7 +28,7 @@ export function JoinDaoModal({ isOpen, onClose }: JoinDaoModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCheckingMembership, setIsCheckingMembership] = useState(false);
   const { joinDao, memberStatus, loading: contractLoading } = useContract();
-  const { signer, address, chainIdHex, refreshMemberStatus, provider } =
+  const { signer, address, chainId, refreshMemberStatus, provider } =
     useWallet();
 
   const isLoading = isSubmitting || isCheckingMembership || contractLoading;
@@ -84,7 +84,7 @@ export function JoinDaoModal({ isOpen, onClose }: JoinDaoModalProps) {
     setIsCheckingMembership(true);
     try {
       // Check if on Base Mainnet or Base Sepolia
-      if (chainIdHex !== CHAIN_IDS.BASE_SEPOLIA) {
+      if (chainId !== parseInt(CHAIN_IDS.BASE_SEPOLIA, 16)) {
         setIsCheckingMembership(false);
         return;
       }
@@ -122,7 +122,7 @@ export function JoinDaoModal({ isOpen, onClose }: JoinDaoModalProps) {
           "@/constants/address"
         );
 
-        if (chainIdHex === CHAIN_IDS.BASE_SEPOLIA) {
+        if (chainId === parseInt(CHAIN_IDS.BASE_SEPOLIA, 16)) {
           const membersContract = new ethers.Contract(
             CONTRACT_ADDRESSES.Members,
             MEMBERS_ABI,

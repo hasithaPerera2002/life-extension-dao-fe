@@ -96,10 +96,25 @@ const EMPTY_MEMBER_STATUS: MemberStatus = {
   balance: null,
   loading: false,
 };
+const BASE_SEPOLIA_CHAIN_ID = parseInt(CHAIN_IDS.BASE_SEPOLIA, 16);
 
 function getHasWallet(): boolean {
   if (typeof window === "undefined") return false;
   return !!(window as Window & { ethereum?: unknown }).ethereum;
+}
+
+function normalizeChainId(chainIdLike: string | number | null | undefined): number | null {
+  if (chainIdLike === null || chainIdLike === undefined) return null;
+  if (typeof chainIdLike === "number") return chainIdLike;
+  if (chainIdLike.startsWith("0x") || chainIdLike.startsWith("0X")) {
+    return parseInt(chainIdLike, 16);
+  }
+  const parsed = Number(chainIdLike);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isBaseSepolia(chainIdLike: string | number | null | undefined): boolean {
+  return normalizeChainId(chainIdLike) === BASE_SEPOLIA_CHAIN_ID;
 }
 
 export function WalletProvider({ children }: { children: ReactNode }) {
@@ -353,12 +368,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setChainId(newChainId);
 
       // Accept both Base Mainnet and Base Sepolia
-      if (chainIdHex !== CHAIN_IDS.BASE_SEPOLIA) {
+      if (!isBaseSepolia(chainIdHex)) {
         if (!isConnecting) {
           setShowNetworkModal(true);
         }
       } else {
-        const networkName = chainIdHex === CHAIN_IDS.BASE_SEPOLIA ? "Base Sepolia" : "Base";
+        const networkName = isBaseSepolia(chainIdHex) ? "Base Sepolia" : "Base";
         toast.success(`Connected to ${networkName}`);
       }
     };
@@ -427,7 +442,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setMemberStatus(persistedMemberStatus);
       }
 
-      if ( chainIdHex !== CHAIN_IDS.BASE_SEPOLIA) {
+      if (!isBaseSepolia(networkChainId)) {
         toast.info(
           "For full functionality, you may need to switch to Base network"
         );
@@ -522,7 +537,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         method: "eth_chainId",
       });
 
-      if (currentChainId !== targetChainIdHex) {
+      if (normalizeChainId(currentChainId) !== normalizeChainId(targetChainIdHex)) {
         const networkName = targetChainIdHex === CHAIN_IDS.BASE_SEPOLIA ? "Base Sepolia" : "Base";
         toast.warning(
           `Some features may be limited. Current network is not ${networkName}.`
@@ -543,10 +558,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       !provider ||
       !signer ||
       !address ||
-      chainIdHex !== CHAIN_IDS.BASE_SEPOLIA
+      !isBaseSepolia(chainId)
     ) {
       // Only reset if we're truly disconnected or on wrong network
-      if (!isConnected || chainIdHex !== CHAIN_IDS.BASE_SEPOLIA) {
+      if (!isConnected || !isBaseSepolia(chainId)) {
         setMemberStatus(EMPTY_MEMBER_STATUS);
       }
       return;
@@ -643,7 +658,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isConnected &&
       signer &&
       address &&
-      chainIdHex === CHAIN_IDS.BASE_SEPOLIA
+      isBaseSepolia(chainId)
     ) {
       // Only refresh if we don't have any member status data at all or if the current data is clearly invalid
       const needsRefresh =
@@ -658,7 +673,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     }
     // Don't reset member status when navigating - only when truly disconnected
-  }, [hasInitialized, isConnected, signer, address, chainIdHex]);
+  }, [hasInitialized, isConnected, signer, address, chainId]);
 
   const walletContextValue: WalletContextType = {
     hasWallet,

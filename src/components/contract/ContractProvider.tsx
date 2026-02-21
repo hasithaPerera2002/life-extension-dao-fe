@@ -98,7 +98,7 @@ export function ContractProvider({ children }: { children: ReactNode }) {
       if (!signer) return;
 
       // Check if we're on Base Mainnet or Base Sepolia
-      const isCorrectNetwork = chainIdHex === CHAIN_IDS.BASE_SEPOLIA;
+      const isCorrectNetwork = chainId === parseInt(CHAIN_IDS.BASE_SEPOLIA, 16);
       if (!isCorrectNetwork) {
         // Set contracts to null and show warning
         setContracts({
